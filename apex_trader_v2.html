@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Apex Trader — Trading Journal</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #080808;
+  --surface: #0f0f0f;
+  --surface2: #161616;
+  --surface3: #1e1e1e;
+  --gold: #D4A847;
+  --gold-dim: #8a6b25;
+  --gold-glow: rgba(212,168,71,0.12);
+  --red: #E05252;
+  --red-dim: rgba(224,82,82,0.12);
+  --green: #4CAF82;
+  --green-dim: rgba(76,175,130,0.12);
+  --blue: #5B9BD5;
+  --blue-dim: rgba(91,155,213,0.12);
+  --text: #e8e4dc;
+  --muted: #6b6762;
+  --border: #1f1f1f;
+  --border2: #2a2a2a;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; }
+
+/* AUTH SCREEN */
+.auth-screen {
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  background: radial-gradient(ellipse at 30% 20%, rgba(212,168,71,0.06) 0%, transparent 60%);
+}
+.auth-box {
+  background:var(--surface); border:1px solid var(--border2);
+  padding:40px; width:420px; max-width:95vw;
+}
+.auth-logo { font-family:'Syne',sans-serif; font-weight:800; font-size:28px; color:var(--gold); margin-bottom:4px; }
+.auth-sub { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:2px; margin-bottom:32px; }
+.auth-title { font-family:'Syne',sans-serif; font-weight:700; font-size:18px; margin-bottom:20px; }
+.form-group { display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
+.form-label { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; }
+.form-input { background:var(--surface2); border:1px solid var(--border2); color:var(--text); padding:10px 12px; font-family:'DM Sans',sans-serif; font-size:13px; outline:none; width:100%; transition:border-color 0.15s; }
+.form-input:focus { border-color:var(--gold-dim); }
+.btn { padding:10px 20px; font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:500; cursor:pointer; border:none; letter-spacing:0.5px; transition:all 0.15s; width:100%; }
+.btn-primary { background:var(--gold); color:var(--bg); }
+.btn-primary:hover { background:#e6bc55; }
+.btn-ghost { background:transparent; color:var(--muted); border:1px solid var(--border2); margin-top:10px; }
+.btn-ghost:hover { color:var(--text); }
+.auth-switch { font-size:12px; color:var(--muted); text-align:center; margin-top:16px; cursor:pointer; }
+.auth-switch span { color:var(--gold); text-decoration:underline; }
+.auth-error { background:var(--red-dim); border:1px solid var(--red); color:var(--red); padding:8px 12px; font-size:12px; margin-bottom:14px; display:none; }
+.auth-success { background:var(--green-dim); border:1px solid var(--green); color:var(--green); padding:8px 12px; font-size:12px; margin-bottom:14px; display:none; }
+
+/* APP */
+.app { display:none; }
+.sidebar {
+  position:fixed; left:0; top:0; width:220px; height:100vh;
+  background:var(--surface); border-right:1px solid var(--border);
+  display:flex; flex-direction:column; z-index:100;
+}
+.logo { padding:24px 20px 20px; border-bottom:1px solid var(--border); }
+.logo-mark { font-family:'Syne',sans-serif; font-weight:800; font-size:20px; color:var(--gold); }
+.logo-sub { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--muted); letter-spacing:2px; margin-top:3px; }
+.nav { flex:1; padding:12px 0; overflow-y:auto; }
+.nav-section { padding:8px 16px 4px; font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--muted); letter-spacing:2px; }
+.nav-item { display:flex; align-items:center; gap:10px; padding:9px 20px; cursor:pointer; transition:all 0.15s; border-left:2px solid transparent; font-size:13px; color:var(--muted); }
+.nav-item:hover { background:var(--surface2); color:var(--text); }
+.nav-item.active { background:var(--gold-glow); color:var(--gold); border-left-color:var(--gold); }
+.nav-badge { margin-left:auto; background:var(--gold); color:var(--bg); font-size:9px; font-family:'JetBrains Mono',monospace; padding:1px 5px; font-weight:700; }
+.sidebar-footer { padding:16px 20px; border-top:1px solid var(--border); }
+.user-info { display:flex; align-items:center; gap:10px; }
+.avatar { width:32px; height:32px; background:var(--gold-glow); border:1px solid var(--gold-dim); border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'Syne',sans-serif; font-weight:800; font-size:13px; color:var(--gold); }
+.user-name { font-family:'Syne',sans-serif; font-weight:700; font-size:13px; }
+.user-email { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--muted); }
+.logout-btn { background:none; border:none; color:var(--muted); font-size:11px; cursor:pointer; font-family:'JetBrains Mono',monospace; margin-top:6px; padding:0; }
+.logout-btn:hover { color:var(--red); }
+
+.main { margin-left:220px; min-height:100vh; }
+.topbar { display:flex; align-items:center; justify-content:space-between; padding:16px 28px; border-bottom:1px solid var(--border); background:var(--surface); position:sticky; top:0; z-index:50; }
+.page-title { font-family:'Syne',sans-serif; font-weight:800; font-size:18px; }
+.page-sub { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted); margin-top:1px; }
+.topbar-actions { display:flex; gap:10px; }
+.top-btn { padding:8px 16px; font-family:'JetBrains Mono',monospace; font-size:11px; cursor:pointer; border:none; transition:all 0.15s; }
+.top-btn-primary { background:var(--gold); color:var(--bg); }
+.top-btn-ghost { background:transparent; color:var(--muted); border:1px solid var(--border2); }
+.top-btn-ghost:hover { color:var(--text); }
+
+.content { padding:24px 28px; }
+.page { display:none; }
+.page.active { display:block; }
+
+/* STATS */
+.stats-row { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:20px; }
+.stat-card { background:var(--surface); border:1px solid var(--border); padding:16px; position:relative; overflow:hidden; }
+.stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
+.stat-card.gold::before { background:var(--gold); }
+.stat-card.green::before { background:var(--green); }
+.stat-card.red::before { background:var(--red); }
+.stat-card.blue::before { background:var(--blue); }
+.stat-card.purple::before { background:#9B7ED4; }
+.stat-label { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; margin-bottom:8px; }
+.stat-value { font-family:'Syne',sans-serif; font-weight:800; font-size:22px; line-height:1; margin-bottom:4px; }
+.stat-card.gold .stat-value { color:var(--gold); }
+.stat-card.green .stat-value { color:var(--green); }
+.stat-card.red .stat-value { color:var(--red); }
+.stat-card.blue .stat-value { color:var(--blue); }
+.stat-card.purple .stat-value { color:#9B7ED4; }
+.stat-sub { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted); }
+
+.card { background:var(--surface); border:1px solid var(--border); margin-bottom:16px; }
+.card-header { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.card-title { font-family:'Syne',sans-serif; font-weight:700; font-size:13px; }
+.card-tag { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--muted); }
+.card-body { padding:16px 18px; }
+
+/* TABLE */
+.trade-table { width:100%; border-collapse:collapse; }
+.trade-table th { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; padding:8px 12px; text-align:left; border-bottom:1px solid var(--border); background:var(--surface2); }
+.trade-table td { padding:10px 12px; font-size:12px; border-bottom:1px solid var(--border); }
+.trade-table tr:last-child td { border-bottom:none; }
+.trade-table tr:hover td { background:var(--surface2); }
+.badge { display:inline-flex; align-items:center; padding:2px 8px; font-family:'JetBrains Mono',monospace; font-size:9px; font-weight:700; }
+.badge-buy { background:var(--green-dim); color:var(--green); }
+.badge-sell { background:var(--red-dim); color:var(--red); }
+.badge-win { background:var(--green-dim); color:var(--green); }
+.badge-loss { background:var(--red-dim); color:var(--red); }
+.badge-open { background:var(--blue-dim); color:var(--blue); }
+.profit-pos { color:var(--green); font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:500; }
+.profit-neg { color:var(--red); font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:500; }
+.mono { font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); }
+
+/* MODAL */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:200; display:none; align-items:center; justify-content:center; }
+.modal-overlay.open { display:flex; }
+.modal { background:var(--surface); border:1px solid var(--border2); width:580px; max-width:95vw; max-height:90vh; overflow-y:auto; }
+.modal-header { padding:18px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.modal-title { font-family:'Syne',sans-serif; font-weight:700; font-size:15px; }
+.modal-close { background:none; border:none; color:var(--muted); font-size:20px; cursor:pointer; }
+.modal-body { padding:20px; }
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+.form-group-modal { display:flex; flex-direction:column; gap:6px; }
+.form-group-modal.full { grid-column:1/-1; }
+.form-label-modal { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; }
+.form-input-modal, .form-select-modal, .form-textarea-modal { background:var(--surface2); border:1px solid var(--border2); color:var(--text); padding:9px 12px; font-family:'DM Sans',sans-serif; font-size:13px; outline:none; width:100%; transition:border-color 0.15s; }
+.form-input-modal:focus, .form-select-modal:focus { border-color:var(--gold-dim); }
+.form-select-modal option { background:var(--surface2); }
+.form-textarea-modal { resize:vertical; min-height:70px; }
+
+.checklist-box { background:var(--surface2); border:1px solid var(--border); padding:12px; margin-bottom:14px; }
+.checklist-title { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--gold); letter-spacing:1px; margin-bottom:8px; }
+.check-item { display:flex; align-items:center; gap:8px; padding:4px 0; font-size:12px; color:var(--muted); cursor:pointer; }
+.check-item input { accent-color:var(--gold); }
+
+/* AI CARD */
+.ai-card { background:linear-gradient(135deg, var(--surface) 0%, rgba(212,168,71,0.04) 100%); border:1px solid var(--gold-dim); padding:16px; margin-bottom:20px; }
+.ai-header { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.ai-dot { width:8px; height:8px; background:var(--gold); border-radius:50%; animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.ai-title { font-family:'Syne',sans-serif; font-weight:700; font-size:12px; color:var(--gold); }
+.ai-text { font-size:12.5px; line-height:1.7; color:var(--text); opacity:0.85; }
+
+/* LOADING */
+.loading { display:flex; align-items:center; justify-content:center; padding:40px; }
+.spinner { width:24px; height:24px; border:2px solid var(--border2); border-top-color:var(--gold); border-radius:50%; animation:spin 0.8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.empty-state { text-align:center; padding:40px; color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:12px; }
+
+/* TWO COL */
+.two-col { display:grid; grid-template-columns:1fr 380px; gap:16px; margin-bottom:16px; }
+
+/* CHALLENGE */
+.challenge-card { background:var(--surface2); border:1px solid var(--border); padding:14px; margin-bottom:10px; position:relative; overflow:hidden; }
+.challenge-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--gold); }
+.challenge-firm { font-family:'Syne',sans-serif; font-weight:700; font-size:12px; margin-bottom:2px; }
+.challenge-phase { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--muted); margin-bottom:10px; }
+.progress-bar { height:4px; background:var(--surface3); border-radius:2px; overflow:hidden; margin-bottom:4px; }
+.progress-fill { height:100%; border-radius:2px; }
+.progress-labels { display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--muted); }
+
+/* CALENDAR */
+.calendar-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+.cal-hdr { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--muted); text-align:center; padding:4px 0; }
+.cal-day { aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted); border-radius:2px; cursor:pointer; }
+.cal-day.win { background:var(--green-dim); color:var(--green); }
+.cal-day.loss { background:var(--red-dim); color:var(--red); }
+.cal-day.today { border:1px solid var(--gold); color:var(--gold); }
+.cal-day.empty { opacity:0; }
+
+/* ANALYTICS */
+.analytics-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px; }
+.mini-stat { background:var(--surface); border:1px solid var(--border); padding:14px; }
+.mini-label { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--muted); letter-spacing:1px; margin-bottom:6px; }
+.mini-value { font-family:'Syne',sans-serif; font-weight:700; font-size:18px; }
+
+/* PLAYBOOK */
+.playbook-item { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); }
+.playbook-item:last-child { border-bottom:none; }
+.playbook-icon { width:32px; height:32px; background:var(--gold-glow); border:1px solid var(--gold-dim); display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+.playbook-name { font-family:'Syne',sans-serif; font-weight:600; font-size:12px; }
+.playbook-meta { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--muted); margin-top:1px; }
+.playbook-wr { margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; }
+
+@media(max-width:768px) {
+  .sidebar { transform:translateX(-100%); transition:transform 0.3s; }
+  .sidebar.open { transform:translateX(0); }
+  .main { margin-left:0; }
+  .stats-row { grid-template-columns:repeat(2,1fr); }
+  .two-col { grid-template-columns:1fr; }
+  .analytics-grid { grid-template-columns:repeat(2,1fr); }
+  .mobile-btn { display:flex !important; }
+}
+.mobile-btn { display:none; background:none; border:none; color:var(--text); font-size:20px; cursor:pointer; }
+
+.toast { position:fixed; bottom:24px; right:24px; background:var(--surface2); border:1px solid var(--gold-dim); color:var(--text); padding:12px 20px; font-family:'JetBrains Mono',monospace; font-size:11px; z-index:999; transform:translateY(100px); opacity:0; transition:all 0.3s; }
+.toast.show { transform:translateY(0); opacity:1; }
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- AUTH -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-box">
+    <div class="auth-logo">APEX TRADER</div>
+    <div class="auth-sub">TRADING JOURNAL</div>
+    <div id="authError" class="auth-error"></div>
+    <div id="authSuccess" class="auth-success"></div>
+
+    <!-- LOGIN -->
+    <div id="loginForm">
+      <div class="auth-title">Welcome back</div>
+      <div class="form-group">
+        <div class="form-label">Email</div>
+        <input class="form-input" id="loginEmail" type="email" placeholder="your@email.com"/>
+      </div>
+      <div class="form-group">
+        <div class="form-label">Password</div>
+        <input class="form-input" id="loginPassword" type="password" placeholder="••••••••"/>
+      </div>
+      <button class="btn btn-primary" onclick="login()">Sign In</button>
+      <div class="auth-switch">No account? <span onclick="showSignup()">Create one</span></div>
+    </div>
+
+    <!-- SIGNUP -->
+    <div id="signupForm" style="display:none">
+      <div class="auth-title">Create account</div>
+      <div class="form-group">
+        <div class="form-label">Full Name</div>
+        <input class="form-input" id="signupName" type="text" placeholder="Drift"/>
+      </div>
+      <div class="form-group">
+        <div class="form-label">Email</div>
+        <input class="form-input" id="signupEmail" type="email" placeholder="your@email.com"/>
+      </div>
+      <div class="form-group">
+        <div class="form-label">Password</div>
+        <input class="form-input" id="signupPassword" type="password" placeholder="min 6 characters"/>
+      </div>
+      <button class="btn btn-primary" onclick="signup()">Create Account</button>
+      <div class="auth-switch">Have an account? <span onclick="showLogin()">Sign in</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="appScreen">
+  <aside class="sidebar" id="sidebar">
+    <div class="logo">
+      <div class="logo-mark">APEX TRADER</div>
+      <div class="logo-sub">TRADING JOURNAL</div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Main</div>
+      <div class="nav-item active" onclick="showPage('dashboard')">◈ Dashboard</div>
+      <div class="nav-item" onclick="showPage('trades')">⟳ Trade Log</div>
+      <div class="nav-item" onclick="showPage('analytics')">▲ Analytics</div>
+      <div class="nav-item" onclick="showPage('calendar')">▦ Calendar</div>
+      <div class="nav-section">Tools</div>
+      <div class="nav-item" onclick="showPage('challenges')">🎯 Challenges</div>
+      <div class="nav-item" onclick="showPage('playbooks')">📋 Playbooks</div>
+      <div class="nav-item" onclick="showPage('ai')">✦ Drift AI</div>
+      <div class="nav-section">Account</div>
+      <div class="nav-item" onclick="showPage('risk')">⚠ Risk Metrics</div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="avatar" id="userAvatar">D</div>
+        <div>
+          <div class="user-name" id="userName">Drift</div>
+          <div class="user-email" id="userEmail"></div>
+        </div>
+      </div>
+      <button class="logout-btn" onclick="logout()">Sign out</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="mobile-btn" onclick="toggleSidebar()">☰</button>
+        <div>
+          <div class="page-title" id="pageTitle">Dashboard</div>
+          <div class="page-sub" id="pageSub">Overview of your trading performance</div>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button class="top-btn top-btn-ghost" onclick="openModal()">+ Log Trade</button>
+        <button class="top-btn top-btn-primary" onclick="openModal()">+ New Trade</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div class="page active" id="page-dashboard">
+        <div class="ai-card">
+          <div class="ai-header"><div class="ai-dot"></div><div class="ai-title">DRIFT AI — PERFORMANCE INSIGHT</div></div>
+          <div class="ai-text" id="aiInsight">Analyzing your trades...</div>
+        </div>
+        <div class="stats-row">
+          <div class="stat-card gold"><div class="stat-label">Net P&L</div><div class="stat-value" id="statPnl">$0</div><div class="stat-sub">All time</div></div>
+          <div class="stat-card green"><div class="stat-label">Win Rate</div><div class="stat-value" id="statWr">0%</div><div class="stat-sub">All trades</div></div>
+          <div class="stat-card blue"><div class="stat-label">Avg RR</div><div class="stat-value" id="statRr">0</div><div class="stat-sub">All trades</div></div>
+          <div class="stat-card red"><div class="stat-label">Total Trades</div><div class="stat-value" id="statTotal">0</div><div class="stat-sub">Logged</div></div>
+          <div class="stat-card purple"><div class="stat-label">Best Trade</div><div class="stat-value" id="statBest">$0</div><div class="stat-sub">Single trade</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Recent Trades</div><div class="card-tag" style="color:var(--gold);cursor:pointer" onclick="showPage('trades')">VIEW ALL →</div></div>
+          <div id="recentTradesBody">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TRADES -->
+      <div class="page" id="page-trades">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Trade Log</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <select id="filterSymbol" class="form-select-modal" style="width:120px;padding:5px 8px;font-size:11px;" onchange="loadTrades()">
+                <option value="">All Symbols</option>
+                <option>XAUUSD</option><option>BTCUSD</option><option>USDJPY</option>
+                <option>GER40</option><option>US30</option><option>USOIL</option>
+                <option>GBPJPY</option><option>XAGUSD</option>
+              </select>
+              <select id="filterResult" class="form-select-modal" style="width:100px;padding:5px 8px;font-size:11px;" onchange="loadTrades()">
+                <option value="">All Results</option>
+                <option value="WIN">Wins</option>
+                <option value="LOSS">Losses</option>
+                <option value="OPEN">Open</option>
+              </select>
+            </div>
+          </div>
+          <div id="tradesTableBody">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ANALYTICS -->
+      <div class="page" id="page-analytics">
+        <div class="analytics-grid" id="analyticsGrid">
+          <div class="loading" style="grid-column:1/-1"><div class="spinner"></div></div>
+        </div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-header"><div class="card-title">P&L by Symbol</div></div>
+            <div id="symbolBreakdown"><div class="loading"><div class="spinner"></div></div></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Session Performance</div></div>
+            <div id="sessionBreakdown"><div class="loading"><div class="spinner"></div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CALENDAR -->
+      <div class="page" id="page-calendar">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Performance Calendar</div><div class="card-tag" id="calMonthLabel"></div></div>
+          <div class="card-body" id="calendarBody"></div>
+        </div>
+      </div>
+
+      <!-- CHALLENGES -->
+      <div class="page" id="page-challenges">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+          <button class="top-btn top-btn-primary" onclick="openChallengeModal()">+ Add Challenge</button>
+        </div>
+        <div id="challengesList"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+
+      <!-- PLAYBOOKS -->
+      <div class="page" id="page-playbooks">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Strategy Playbooks</div></div>
+          <div class="card-body">
+            <div class="playbook-item">
+              <div class="playbook-icon">📈</div>
+              <div><div class="playbook-name">SLP — Bullish BOS + POI</div><div class="playbook-meta">1D bias → 4H BOS → IDM → POI → Risk Entry</div></div>
+              <div class="playbook-wr" style="color:var(--green)">SLP ✓</div>
+            </div>
+            <div class="playbook-item">
+              <div class="playbook-icon">📉</div>
+              <div><div class="playbook-name">SLP — Bearish MSS + IDM</div><div class="playbook-meta">Wait for MSS when multiple POIs present</div></div>
+              <div class="playbook-wr" style="color:var(--green)">SLP ✓</div>
+            </div>
+            <div class="playbook-item">
+              <div class="playbook-icon">⚡</div>
+              <div><div class="playbook-name">BTC Liquidity Sweep</div><div class="playbook-meta">HTF liquidity sweep into unmitigated POI</div></div>
+              <div class="playbook-wr" style="color:var(--gold)">CUSTOM</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DRIFT AI -->
+      <div class="page" id="page-ai">
+        <div class="ai-card">
+          <div class="ai-header"><div class="ai-dot"></div><div class="ai-title">DRIFT AI — DEEP ANALYSIS</div></div>
+          <div class="ai-text" id="aiDeepAnalysis">Loading your trading data for analysis...</div>
+        </div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-header"><div class="card-title">Rule Break Tracker</div></div>
+            <div id="ruleBreaks"><div class="loading"><div class="spinner"></div></div></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Best Trading Days</div></div>
+            <div id="bestDays"><div class="loading"><div class="spinner"></div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RISK -->
+      <div class="page" id="page-risk">
+        <div class="analytics-grid" id="riskGrid">
+          <div class="loading" style="grid-column:1/-1"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- ADD TRADE MODAL -->
+<div class="modal-overlay" id="tradeModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Log New Trade</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="checklist-box">
+        <div class="checklist-title">⬡ SLP CHECKLIST — COMPLETE BEFORE ENTRY</div>
+        <label class="check-item"><input type="checkbox" id="chk1"> Daily bias confirmed (1D)?</label>
+        <label class="check-item"><input type="checkbox" id="chk2"> BOS confirmed on 4H/2H/1H?</label>
+        <label class="check-item"><input type="checkbox" id="chk3"> IDM (first pullback) identified?</label>
+        <label class="check-item"><input type="checkbox" id="chk4"> POI is unmitigated?</label>
+        <label class="check-item"><input type="checkbox" id="chk5"> SL placed correctly beyond POI?</label>
+        <label class="check-item"><input type="checkbox" id="chk6"> TP set before entry?</label>
+        <label class="check-item"><input type="checkbox" id="chk7"> RR is minimum 1:5?</label>
+        <label class="check-item"><input type="checkbox" id="chk8"> I am calm right now?</label>
+      </div>
+      <div class="form-grid">
+        <div class="form-group-modal">
+          <div class="form-label-modal">Symbol</div>
+          <select class="form-select-modal" id="tradeSymbol">
+            <option>XAUUSD</option><option>BTCUSD</option><option>USDJPY</option>
+            <option>GER40</option><option>US30</option><option>USOIL</option>
+            <option>GBPJPY</option><option>XAGUSD</option>
+          </select>
+        </div>
+        <div class="form-group-modal">
+          <div class="form-label-modal">Direction</div>
+          <select class="form-select-modal" id="tradeDirection">
+            <option>BUY</option><option>SELL</option>
+          </select>
+        </div>
+        <div class="form-group-modal">
+          <div class="form-label-modal">Entry Price</div>
+          <input class="form-input-modal" id="tradeEntry" type="number" placeholder="0.00" step="0.001"/>
+        </div>
+        <div class="form-group-modal">
+          <div class="form-label-modal">Stop Loss</div>
+          <input class="form-input-modal" id="tradeSL" type="number" placeholder="0.00" step="0.001"/>
+        </div>
+        <div class="form-group-modal">
+          <div class="form-label-modal">Take Profit</div>
+          <input class="form-input-modal" id="tradeTP" type="number" placeholder="0.00" step="0.001"/>
+        </div>
+        <div class="form-group-modal">
+          <div class="form-label-modal">P&L ($)</div>
+          <input class="form-input-modal" id="tradePnl" type="number" placeholder="e.g. 500 or -100"/>
+        </div>
+        <div class="form-group-modal">
+          <div class="form-label-modal">RR Achieved</div>
+          <input class="form-input-modal" id="tradeRR" type="number" placeholder="e.g. 5.2" step="0.1"/>
+        </div>
+        <div class="form-group-modal">
+          <div class="form-label-modal">Result</div>
+          <select class="form-select-modal" id="tradeResult">
+            <option value="WIN">WIN</option>
+            <option value="LOSS">LOSS</option>
+            <option value="OPEN">OPEN</option>
+            <option value="BREAKEVEN">BREAKEVEN</option>
+          </select>
+        </div>
+        <div class="form-group-modal">
+          <div class="form-label-modal">Session</div>
+          <select class="form-select-modal" id="tradeSession">
+            <option>London</option><option>New York</option><option>Tokyo</option><option>Sydney</option>
+          </select>
+        </div>
+        <div class="form-group-modal">
+          <div class="form-label-modal">Setup Type</div>
+          <select class="form-select-modal" id="tradeSetup">
+            <option>SLP — Full Checklist</option>
+            <option>SLP — Risk Entry</option>
+            <option>SLP — MSS Entry</option>
+            <option>Other (Rule Break)</option>
+          </select>
+        </div>
+        <div class="form-group-modal">
+          <div class="form-label-modal">Emotion State</div>
+          <select class="form-select-modal" id="tradeEmotion">
+            <option>😌 Calm</option><option>😤 Frustrated</option>
+            <option>😰 Anxious</option><option>🤩 Overconfident</option>
+          </select>
+        </div>
+        <div class="form-group-modal">
+          <div class="form-label-modal">Account</div>
+          <input class="form-input-modal" id="tradeAccount" placeholder="e.g. The5ers $50K P2"/>
+        </div>
+        <div class="form-group-modal full">
+          <div class="form-label-modal">Journal Notes</div>
+          <textarea class="form-textarea-modal" id="tradeNotes" placeholder="Why did you take this trade? What do you see?"></textarea>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="top-btn top-btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="top-btn top-btn-primary" onclick="saveTrade()">Save Trade</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CHALLENGE MODAL -->
+<div class="modal-overlay" id="challengeModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add Challenge</div>
+      <button class="modal-close" onclick="closeChallengeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group-modal">
+          <div class="form-label-modal">Firm Name</div>
+          <select class="form-select-modal" id="challengeFirm">
+            <option>The5ers</option><option>FundingPips</option><option>FundedNext</option>
+            <option>FTMO</option><option>Alpha Capital</option><option>Goat Funded</option><option>Other</option>
+          </select>
+        </div>
+        <div class="form-group-modal">
+          <div class="form-label-modal">Account Size</div>
+          <input class="form-input-modal" id="challengeSize" placeholder="e.g. $50,000"/>
+        </div>
+        <div class="form-group-modal">
+          <div class="form-label-modal">Current Phase</div>
+          <select class="form-select-modal" id="challengePhase">
+            <option>Phase 1</option><option>Phase 2</option><option>Funded</option>
+          </select>
+        </div>
+        <div class="form-group-modal">
+          <div class="form-label-modal">Profit Target ($)</div>
+          <input class="form-input-modal" id="challengeTarget" type="number" placeholder="e.g. 5000"/>
+        </div>
+        <div class="form-group-modal">
+          <div class="form-label-modal">Current P&L ($)</div>
+          <input class="form-input-modal" id="challengePnl" type="number" placeholder="e.g. 2500"/>
+        </div>
+        <div class="form-group-modal">
+          <div class="form-label-modal">Max Drawdown ($)</div>
+          <input class="form-input-modal" id="challengeMaxDD" type="number" placeholder="e.g. 5000"/>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="top-btn top-btn-ghost" onclick="closeChallengeModal()">Cancel</button>
+        <button class="top-btn top-btn-primary" onclick="saveChallenge()">Save Challenge</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// SUPABASE INIT
+const { createClient } = supabase;
+const sb = createClient(
+  'https://dzvhuudsvbrohpzcdann.supabase.co',
+  'sb_publishable_Yp7FMdnSCtNAd4zwP792Fw_olludCp9'
+);
+
+let currentUser = null;
+let allTrades = [];
+
+// AUTH
+async function login() {
+  const email = document.getElementById('loginEmail').value;
+  const pass = document.getElementById('loginPassword').value;
+  if(!email || !pass) return showError('Fill in all fields');
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if(error) return showError(error.message);
+  currentUser = data.user;
+  initApp();
+}
+
+async function signup() {
+  const name = document.getElementById('signupName').value;
+  const email = document.getElementById('signupEmail').value;
+  const pass = document.getElementById('signupPassword').value;
+  if(!name || !email || !pass) return showError('Fill in all fields');
+  const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { full_name: name } } });
+  if(error) return showError(error.message);
+  showSuccess('Account created! Check your email to confirm, then sign in.');
+  showLogin();
+}
+
+async function logout() {
+  await sb.auth.signOut();
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('authScreen').style.display = 'flex';
+  currentUser = null;
+}
+
+function showError(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg; el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 4000);
+}
+function showSuccess(msg) {
+  const el = document.getElementById('authSuccess');
+  el.textContent = msg; el.style.display = 'block';
+}
+function showSignup() {
+  document.getElementById('loginForm').style.display = 'none';
+  document.getElementById('signupForm').style.display = 'block';
+}
+function showLogin() {
+  document.getElementById('signupForm').style.display = 'none';
+  document.getElementById('loginForm').style.display = 'block';
+}
+
+// INIT APP
+function initApp() {
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+  const name = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
+  document.getElementById('userName').textContent = name;
+  document.getElementById('userEmail').textContent = currentUser.email;
+  document.getElementById('userAvatar').textContent = name.charAt(0).toUpperCase();
+  loadDashboard();
+  createTablesIfNeeded();
+}
+
+async function createTablesIfNeeded() {
+  // Tables created via Supabase dashboard — this just ensures graceful handling
+}
+
+// LOAD DATA
+async function loadDashboard() {
+  const { data, error } = await sb.from('trades').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+  if(error) { console.log(error); allTrades = []; }
+  else allTrades = data || [];
+  updateStats();
+  renderRecentTrades();
+  updateAIInsight();
+}
+
+function updateStats() {
+  const closed = allTrades.filter(t => t.result !== 'OPEN');
+  const wins = closed.filter(t => t.result === 'WIN');
+  const totalPnl = allTrades.reduce((s, t) => s + (parseFloat(t.pnl) || 0), 0);
+  const wr = closed.length ? Math.round((wins.length / closed.length) * 100) : 0;
+  const avgRR = closed.length ? (closed.reduce((s,t) => s + (parseFloat(t.rr) || 0), 0) / closed.length).toFixed(1) : 0;
+  const bestTrade = allTrades.length ? Math.max(...allTrades.map(t => parseFloat(t.pnl) || 0)) : 0;
+
+  document.getElementById('statPnl').textContent = (totalPnl >= 0 ? '+' : '') + '$' + totalPnl.toLocaleString();
+  document.getElementById('statWr').textContent = wr + '%';
+  document.getElementById('statRr').textContent = '1:' + avgRR;
+  document.getElementById('statTotal').textContent = allTrades.length;
+  document.getElementById('statBest').textContent = '+$' + bestTrade.toLocaleString();
+}
+
+function updateAIInsight() {
+  const closed = allTrades.filter(t => t.result !== 'OPEN');
+  const wins = closed.filter(t => t.result === 'WIN');
+  const wr = closed.length ? Math.round((wins.length / closed.length) * 100) : 0;
+  const avgRR = closed.length ? (closed.reduce((s,t) => s + (parseFloat(t.rr) || 0), 0) / closed.length).toFixed(1) : 0;
+  const totalPnl = allTrades.reduce((s, t) => s + (parseFloat(t.pnl) || 0), 0);
+  const ruleBreaks = allTrades.filter(t => t.setup && t.setup.includes('Rule Break')).length;
+
+  let insight = '';
+  if(allTrades.length === 0) {
+    insight = 'No trades logged yet. Start logging your SLP trades to get AI-powered insights on your performance.';
+  } else {
+    insight = `You have ${allTrades.length} trades logged. Win rate: ${wr}%. Average RR: 1:${avgRR}. Net P&L: $${totalPnl.toLocaleString()}.`;
+    if(parseFloat(avgRR) < 5) insight += ` Your average RR is below your 1:5 minimum — you may be exiting trades too early.`;
+    if(ruleBreaks > 0) insight += ` ${ruleBreaks} rule break(s) detected — review these trades in the Drift AI section.`;
+    if(wr >= 60) insight += ` Strong win rate. Keep following the SLP checklist.`;
+    if(totalPnl > 0) insight += ` Account in profit. Protect your gains — stick to the 2-loss rule.`;
+  }
+  document.getElementById('aiInsight').textContent = insight;
+  document.getElementById('aiDeepAnalysis').textContent = insight;
+}
+
+function renderRecentTrades(trades) {
+  const t = trades || allTrades.slice(0, 8);
+  const body = document.getElementById('recentTradesBody');
+  if(t.length === 0) { body.innerHTML = '<div class="empty-state">No trades yet. Click "+ New Trade" to log your first trade.</div>'; return; }
+  body.innerHTML = `<table class="trade-table">
+    <thead><tr><th>SYMBOL</th><th>DIR</th><th>RESULT</th><th>RR</th><th>P&L</th><th>SESSION</th><th>SETUP</th><th>DATE</th></tr></thead>
+    <tbody>${t.map(tr => `
+      <tr>
+        <td><b>${tr.symbol}</b></td>
+        <td><span class="badge badge-${tr.direction === 'BUY' ? 'buy' : 'sell'}">${tr.direction}</span></td>
+        <td><span class="badge badge-${tr.result === 'WIN' ? 'win' : tr.result === 'LOSS' ? 'loss' : 'open'}">${tr.result}</span></td>
+        <td class="mono">1:${tr.rr || '—'}</td>
+        <td class="${parseFloat(tr.pnl) >= 0 ? 'profit-pos' : 'profit-neg'}">${parseFloat(tr.pnl) >= 0 ? '+' : ''}$${parseFloat(tr.pnl || 0).toLocaleString()}</td>
+        <td style="font-size:11px;color:var(--muted)">${tr.session || '—'}</td>
+        <td style="font-size:11px;color:${tr.setup && tr.setup.includes('Rule') ? 'var(--red)' : 'var(--gold)'}">${tr.setup ? tr.setup.split('—')[0].trim() : 'SLP'}</td>
+        <td class="mono">${new Date(tr.created_at).toLocaleDateString()}</td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+async function loadTrades() {
+  const sym = document.getElementById('filterSymbol').value;
+  const res = document.getElementById('filterResult').value;
+  let query = sb.from('trades').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+  if(sym) query = query.eq('symbol', sym);
+  if(res) query = query.eq('result', res);
+  const { data } = await query;
+  const trades = data || [];
+  const body = document.getElementById('tradesTableBody');
+  if(trades.length === 0) { body.innerHTML = '<div class="empty-state">No trades found.</div>'; return; }
+  body.innerHTML = `<table class="trade-table">
+    <thead><tr><th>#</th><th>SYMBOL</th><th>DIR</th><th>ENTRY</th><th>SL</th><th>TP</th><th>RR</th><th>RESULT</th><th>P&L</th><th>SESSION</th><th>EMOTION</th><th>NOTES</th><th>DATE</th></tr></thead>
+    <tbody>${trades.map((tr,i) => `
+      <tr>
+        <td class="mono">#${String(trades.length - i).padStart(3,'0')}</td>
+        <td><b>${tr.symbol}</b></td>
+        <td><span class="badge badge-${tr.direction === 'BUY' ? 'buy' : 'sell'}">${tr.direction}</span></td>
+        <td class="mono">${tr.entry || '—'}</td>
+        <td class="mono">${tr.stop_loss || '—'}</td>
+        <td class="mono">${tr.take_profit || '—'}</td>
+        <td class="mono">1:${tr.rr || '—'}</td>
+        <td><span class="badge badge-${tr.result === 'WIN' ? 'win' : tr.result === 'LOSS' ? 'loss' : 'open'}">${tr.result}</span></td>
+        <td class="${parseFloat(tr.pnl) >= 0 ? 'profit-pos' : 'profit-neg'}">${parseFloat(tr.pnl) >= 0 ? '+' : ''}$${parseFloat(tr.pnl||0).toLocaleString()}</td>
+        <td style="font-size:11px;color:var(--muted)">${tr.session||'—'}</td>
+        <td style="font-size:11px">${tr.emotion||'—'}</td>
+        <td style="font-size:11px;color:var(--muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${tr.notes||'—'}</td>
+        <td class="mono">${new Date(tr.created_at).toLocaleDateString()}</td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+async function loadAnalytics() {
+  const { data } = await sb.from('trades').select('*').eq('user_id', currentUser.id);
+  const trades = data || [];
+  const closed = trades.filter(t => t.result !== 'OPEN');
+  const wins = closed.filter(t => t.result === 'WIN');
+  const totalPnl = trades.reduce((s,t) => s + (parseFloat(t.pnl)||0), 0);
+  const avgWin = wins.length ? wins.reduce((s,t) => s + (parseFloat(t.pnl)||0),0) / wins.length : 0;
+  const losses = closed.filter(t => t.result === 'LOSS');
+  const avgLoss = losses.length ? Math.abs(losses.reduce((s,t) => s + (parseFloat(t.pnl)||0),0) / losses.length) : 0;
+  const pf = avgLoss > 0 ? (avgWin / avgLoss).toFixed(2) : 'N/A';
+
+  document.getElementById('analyticsGrid').innerHTML = `
+    <div class="mini-stat"><div class="mini-label">TOTAL TRADES</div><div class="mini-value">${trades.length}</div></div>
+    <div class="mini-stat"><div class="mini-label">WIN RATE</div><div class="mini-value" style="color:var(--green)">${closed.length ? Math.round(wins.length/closed.length*100) : 0}%</div></div>
+    <div class="mini-stat"><div class="mini-label">NET P&L</div><div class="mini-value" style="color:var(--gold)">$${totalPnl.toLocaleString()}</div></div>
+    <div class="mini-stat"><div class="mini-label">AVG WIN</div><div class="mini-value" style="color:var(--green)">$${Math.round(avgWin)}</div></div>
+    <div class="mini-stat"><div class="mini-label">AVG LOSS</div><div class="mini-value" style="color:var(--red)">-$${Math.round(avgLoss)}</div></div>
+    <div class="mini-stat"><div class="mini-label">PROFIT FACTOR</div><div class="mini-value" style="color:var(--blue)">${pf}</div></div>
+    <div class="mini-stat"><div class="mini-label">BEST TRADE</div><div class="mini-value" style="color:var(--gold)">+$${trades.length ? Math.max(...trades.map(t=>parseFloat(t.pnl)||0)) : 0}</div></div>
+    <div class="mini-stat"><div class="mini-label">RULE BREAKS</div><div class="mini-value" style="color:var(--red)">${trades.filter(t=>t.setup&&t.setup.includes('Rule')).length}</div></div>
+    <div class="mini-stat"><div class="mini-label">AVG RR</div><div class="mini-value">1:${closed.length ? (closed.reduce((s,t)=>s+(parseFloat(t.rr)||0),0)/closed.length).toFixed(1) : 0}</div></div>
+  `;
+
+  // Symbol breakdown
+  const symbols = [...new Set(trades.map(t=>t.symbol))];
+  document.getElementById('symbolBreakdown').innerHTML = `<table class="trade-table">
+    <thead><tr><th>SYMBOL</th><th>TRADES</th><th>WIN RATE</th><th>NET P&L</th></tr></thead>
+    <tbody>${symbols.map(sym => {
+      const st = trades.filter(t=>t.symbol===sym);
+      const sc = st.filter(t=>t.result!=='OPEN');
+      const sw = sc.filter(t=>t.result==='WIN');
+      const sp = st.reduce((s,t)=>s+(parseFloat(t.pnl)||0),0);
+      return `<tr><td><b>${sym}</b></td><td>${st.length}</td><td style="color:${sw.length/sc.length>=0.6?'var(--green)':'var(--red)'}">${sc.length?Math.round(sw.length/sc.length*100):0}%</td><td class="${sp>=0?'profit-pos':'profit-neg'}">${sp>=0?'+':''}$${Math.round(sp)}</td></tr>`;
+    }).join('')}</tbody></table>`;
+
+  // Session breakdown  
+  const sessions = [...new Set(trades.map(t=>t.session).filter(Boolean))];
+  document.getElementById('sessionBreakdown').innerHTML = `<table class="trade-table">
+    <thead><tr><th>SESSION</th><th>TRADES</th><th>WIN RATE</th><th>P&L</th></tr></thead>
+    <tbody>${sessions.map(ses => {
+      const st = trades.filter(t=>t.session===ses);
+      const sc = st.filter(t=>t.result!=='OPEN');
+      const sw = sc.filter(t=>t.result==='WIN');
+      const sp = st.reduce((s,t)=>s+(parseFloat(t.pnl)||0),0);
+      return `<tr><td>${ses}</td><td>${st.length}</td><td style="color:${sc.length&&sw.length/sc.length>=0.6?'var(--green)':'var(--red)'}">${sc.length?Math.round(sw.length/sc.length*100):0}%</td><td class="${sp>=0?'profit-pos':'profit-neg'}">${sp>=0?'+':''}$${Math.round(sp)}</td></tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+function loadCalendar() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  document.getElementById('calMonthLabel').textContent = now.toLocaleString('default',{month:'long',year:'numeric'}).toUpperCase();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const today = now.getDate();
+
+  // Build day pnl map
+  const dayPnl = {};
+  allTrades.forEach(t => {
+    const d = new Date(t.created_at).getDate();
+    const m = new Date(t.created_at).getMonth();
+    if(m === month) dayPnl[d] = (dayPnl[d]||0) + (parseFloat(t.pnl)||0);
+  });
+
+  const days = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
+  let html = '<div class="calendar-grid">';
+  days.forEach(d => html += `<div class="cal-hdr">${d}</div>`);
+  const startOffset = (firstDay + 6) % 7;
+  for(let i=0;i<startOffset;i++) html += '<div class="cal-day empty"></div>';
+  for(let d=1;d<=daysInMonth;d++) {
+    let cls = 'cal-day';
+    if(d===today) cls += ' today';
+    else if(dayPnl[d]>0) cls += ' win';
+    else if(dayPnl[d]<0) cls += ' loss';
+    html += `<div class="${cls}">${d}</div>`;
+  }
+  html += '</div><div style="display:flex;gap:16px;margin-top:16px;font-family:\'JetBrains Mono\',monospace;font-size:10px;"><span style="color:var(--green)">■ Profit</span><span style="color:var(--red)">■ Loss</span><span style="color:var(--gold)">■ Today</span></div>';
+  document.getElementById('calendarBody').innerHTML = html;
+}
+
+async function loadChallenges() {
+  const { data } = await sb.from('challenges').select('*').eq('user_id', currentUser.id);
+  const challenges = data || [];
+  const el = document.getElementById('challengesList');
+  if(challenges.length === 0) {
+    el.innerHTML = '<div class="empty-state">No challenges added yet. Click "+ Add Challenge" to track your prop firm progress.</div>';
+    return;
+  }
+  el.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">${challenges.map(c => {
+    const pct = c.target ? Math.min(100, Math.round((parseFloat(c.current_pnl)||0) / parseFloat(c.target) * 100)) : 0;
+    return `<div class="card"><div class="card-header" style="border-left:3px solid var(--gold)">
+      <div class="card-title">${c.firm} — ${c.size}</div>
+      <div class="card-tag" style="color:var(--gold)">${c.phase}</div>
+    </div><div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+        <div><div class="mini-label">TARGET</div><div style="font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--green)">$${parseFloat(c.target||0).toLocaleString()}</div></div>
+        <div><div class="mini-label">CURRENT P&L</div><div style="font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--gold)">+$${parseFloat(c.current_pnl||0).toLocaleString()}</div></div>
+        <div><div class="mini-label">MAX DD</div><div style="font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--red)">$${parseFloat(c.max_dd||0).toLocaleString()}</div></div>
+        <div><div class="mini-label">PROGRESS</div><div style="font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--blue)">${pct}%</div></div>
+      </div>
+      <div class="progress-bar" style="height:6px;margin-bottom:4px;"><div class="progress-fill" style="width:${pct}%;background:${pct>=80?'var(--green)':pct>=50?'var(--gold)':'var(--red)'}"></div></div>
+      <div class="progress-labels"><span>Progress</span><span>$${parseFloat(c.current_pnl||0).toLocaleString()} / $${parseFloat(c.target||0).toLocaleString()}</span></div>
+    </div></div>`;
+  }).join('')}</div>`;
+}
+
+async function loadAI() {
+  updateAIInsight();
+  const { data } = await sb.from('trades').select('*').eq('user_id', currentUser.id);
+  const trades = data || [];
+  const ruleBreaks = trades.filter(t => t.setup && t.setup.includes('Rule'));
+
+  document.getElementById('ruleBreaks').innerHTML = ruleBreaks.length === 0
+    ? '<div class="empty-state">No rule breaks detected 🔥</div>'
+    : `<table class="trade-table"><thead><tr><th>DATE</th><th>SYMBOL</th><th>SETUP</th><th>P&L</th></tr></thead><tbody>
+      ${ruleBreaks.map(t => `<tr>
+        <td class="mono">${new Date(t.created_at).toLocaleDateString()}</td>
+        <td><b>${t.symbol}</b></td>
+        <td style="color:var(--red);font-size:11px">${t.setup}</td>
+        <td class="${parseFloat(t.pnl)>=0?'profit-pos':'profit-neg'}">${parseFloat(t.pnl)>=0?'+':''}$${parseFloat(t.pnl||0).toLocaleString()}</td>
+      </tr>`).join('')}</tbody></table>`;
+
+  // Best days
+  const dayMap = {};
+  trades.forEach(t => {
+    const day = new Date(t.created_at).toLocaleDateString('en',{weekday:'long'});
+    if(!dayMap[day]) dayMap[day] = { trades:0, wins:0, pnl:0 };
+    dayMap[day].trades++;
+    if(t.result==='WIN') dayMap[day].wins++;
+    dayMap[day].pnl += parseFloat(t.pnl)||0;
+  });
+  document.getElementById('bestDays').innerHTML = Object.keys(dayMap).length === 0
+    ? '<div class="empty-state">No data yet.</div>'
+    : `<table class="trade-table"><thead><tr><th>DAY</th><th>TRADES</th><th>WIN RATE</th><th>P&L</th></tr></thead><tbody>
+      ${Object.entries(dayMap).map(([day,d]) => `<tr>
+        <td>${day}</td><td>${d.trades}</td>
+        <td style="color:${d.wins/d.trades>=0.6?'var(--green)':'var(--red)'}">${Math.round(d.wins/d.trades*100)}%</td>
+        <td class="${d.pnl>=0?'profit-pos':'profit-neg'}">${d.pnl>=0?'+':''}$${Math.round(d.pnl)}</td>
+      </tr>`).join('')}</tbody></table>`;
+}
+
+async function loadRisk() {
+  const { data } = await sb.from('trades').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false});
+  const trades = data || [];
+  const totalPnl = trades.reduce((s,t)=>s+(parseFloat(t.pnl)||0),0);
+  const losses = trades.filter(t=>t.result==='LOSS');
+  const maxLoss = losses.length ? Math.abs(Math.min(...losses.map(t=>parseFloat(t.pnl)||0))) : 0;
+  const consec = getMaxConsecutiveLosses(trades);
+
+  document.getElementById('riskGrid').innerHTML = `
+    <div class="mini-stat"><div class="mini-label">NET P&L</div><div class="mini-value" style="color:${totalPnl>=0?'var(--gold)':'var(--red)'}">${totalPnl>=0?'+':''}$${Math.abs(Math.round(totalPnl)).toLocaleString()}</div></div>
+    <div class="mini-stat"><div class="mini-label">TOTAL TRADES</div><div class="mini-value">${trades.length}</div></div>
+    <div class="mini-stat"><div class="mini-label">TOTAL LOSSES</div><div class="mini-value" style="color:var(--red)">${losses.length}</div></div>
+    <div class="mini-stat"><div class="mini-label">BIGGEST LOSS</div><div class="mini-value" style="color:var(--red)">-$${Math.round(maxLoss)}</div></div>
+    <div class="mini-stat"><div class="mini-label">MAX CONSEC LOSSES</div><div class="mini-value" style="color:${consec>=2?'var(--red)':'var(--gold)'}">${consec}</div></div>
+    <div class="mini-stat"><div class="mini-label">RULE BREAKS</div><div class="mini-value" style="color:var(--red)">${trades.filter(t=>t.setup&&t.setup.includes('Rule')).length}</div></div>
+  `;
+}
+
+function getMaxConsecutiveLosses(trades) {
+  let max = 0, curr = 0;
+  trades.forEach(t => { if(t.result==='LOSS'){curr++;max=Math.max(max,curr);}else curr=0; });
+  return max;
+}
+
+// SAVE TRADE
+async function saveTrade() {
+  const trade = {
+    user_id: currentUser.id,
+    symbol: document.getElementById('tradeSymbol').value,
+    direction: document.getElementById('tradeDirection').value,
+    entry: document.getElementById('tradeEntry').value,
+    stop_loss: document.getElementById('tradeSL').value,
+    take_profit: document.getElementById('tradeTP').value,
+    pnl: document.getElementById('tradePnl').value,
+    rr: document.getElementById('tradeRR').value,
+    result: document.getElementById('tradeResult').value,
+    session: document.getElementById('tradeSession').value,
+    setup: document.getElementById('tradeSetup').value,
+    emotion: document.getElementById('tradeEmotion').value,
+    account: document.getElementById('tradeAccount').value,
+    notes: document.getElementById('tradeNotes').value,
+  };
+  const { error } = await sb.from('trades').insert([trade]);
+  if(error) { showToast('Error: ' + error.message); return; }
+  showToast('Trade logged successfully! 🔥');
+  closeModal();
+  loadDashboard();
+}
+
+// SAVE CHALLENGE
+async function saveChallenge() {
+  const challenge = {
+    user_id: currentUser.id,
+    firm: document.getElementById('challengeFirm').value,
+    size: document.getElementById('challengeSize').value,
+    phase: document.getElementById('challengePhase').value,
+    target: document.getElementById('challengeTarget').value,
+    current_pnl: document.getElementById('challengePnl').value,
+    max_dd: document.getElementById('challengeMaxDD').value,
+  };
+  const { error } = await sb.from('challenges').insert([challenge]);
+  if(error) { showToast('Error: ' + error.message); return; }
+  showToast('Challenge added! 🎯');
+  closeChallengeModal();
+  loadChallenges();
+}
+
+// NAVIGATION
+const pageConfig = {
+  dashboard: { title:'Dashboard', sub:'Overview of your trading performance' },
+  trades: { title:'Trade Log', sub:'All your trades in one place' },
+  analytics: { title:'Analytics', sub:'50+ performance reports' },
+  calendar: { title:'Performance Calendar', sub:'Track your daily P&L' },
+  challenges: { title:'Challenge Tracker', sub:'Monitor your prop firm progress' },
+  playbooks: { title:'Playbooks', sub:'Your strategy templates' },
+  ai: { title:'Drift AI', sub:'AI-powered trade analysis' },
+  risk: { title:'Risk Metrics', sub:'Drawdown and risk monitoring' },
+};
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('pageTitle').textContent = pageConfig[name]?.title || name;
+  document.getElementById('pageSub').textContent = pageConfig[name]?.sub || '';
+  document.querySelectorAll('.nav-item').forEach(item => {
+    if(item.getAttribute('onclick')?.includes(name)) item.classList.add('active');
+  });
+  if(name === 'trades') loadTrades();
+  if(name === 'analytics') loadAnalytics();
+  if(name === 'calendar') loadCalendar();
+  if(name === 'challenges') loadChallenges();
+  if(name === 'ai') loadAI();
+  if(name === 'risk') loadRisk();
+  if(window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('open');
+}
+
+function openModal() { document.getElementById('tradeModal').classList.add('open'); }
+function closeModal() { document.getElementById('tradeModal').classList.remove('open'); }
+function openChallengeModal() { document.getElementById('challengeModal').classList.add('open'); }
+function closeChallengeModal() { document.getElementById('challengeModal').classList.remove('open'); }
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+document.getElementById('tradeModal').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+document.getElementById('challengeModal').addEventListener('click', function(e){ if(e.target===this) closeChallengeModal(); });
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// CHECK AUTH ON LOAD
+sb.auth.getSession().then(({ data: { session } }) => {
+  if(session) { currentUser = session.user; initApp(); }
+});
+sb.auth.onAuthStateChange((_event, session) => {
+  if(session && !currentUser) { currentUser = session.user; initApp(); }
+});
+</script>
+</body>
+</html>
